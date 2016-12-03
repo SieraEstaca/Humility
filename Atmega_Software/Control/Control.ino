@@ -1,3 +1,13 @@
+/**
+*
+* Space Rover Software Project
+*
+* SiERA  : Estaca Robotics Association
+* ESTACA : Transportation engineering school (France)
+*
+*
+*/
+
 #include <Motor.h>
 #include <Timer.h>
 int chrono = 100;
