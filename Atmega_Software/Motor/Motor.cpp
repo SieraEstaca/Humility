@@ -36,7 +36,7 @@ void Motor::setRPM(float rpm1, float rpm2)
 {
 	// Protect against motor brake
 	if(rpm1 != 0 && rpm2 !=0){
-        rpm1 = 0.f;
+	        rpm1 = 0.f;
 		rpm2 = 0.f;
 	}
 
