@@ -1,11 +1,12 @@
 /**
-*
-* Space Rover Software Project
-*
-* SiERA  : Estaca Robotics Association
-* ESTACA : Transportation engineering school (France)
-*
-*
+__________________________________________________________________________________________________________
+
+				Space Rover Software Project
+
+	SiERA  	: 	Estaca Robotics Association
+	ESTACA 	: 	Transportation engineering school (France)
+__________________________________________________________________________________________________________
+
 */
 
 #ifndef Motor_h
@@ -17,9 +18,9 @@ class Motor
 {
   public:
 	// Constructor
-    	Motor(int IN1pin, int IN2pin);
+    Motor(int IN1pin, int IN2pin);
 	// Functions
-    	void setRPM(float rpm1, float rpm2);
+    void setRPM(float rpm1, float rpm2);
 	float getRPM(int pulses);
 
   private:
