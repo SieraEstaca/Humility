@@ -2,12 +2,12 @@
 import logging
 import serial
 import cv2
-from math 		import cos, sin
+from math import cos, sin
 from sense_hat 	import SenseHat
-from time 		import sleep, time
+from time import sleep, time
 
 # Functions
-from tools 		import Timer
+from tools import Timer
 
 
 class Rover():
