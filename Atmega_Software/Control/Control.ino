@@ -12,7 +12,7 @@ int leftDist = 0, righDist = 0;
 
 // For control loop
 Thread control = Thread();
-ThreadController controller = ThreadController();
+// ThreadController controller = ThreadController();
 Motor leftUP_motor(7, 6);
 Motor righUP_motor(9, 8);
 float leftUp_ref = 0.0, righUp_ref = 0.0, leftDw_ref = 0.0, righDw_ref = 0.0; 
@@ -24,7 +24,7 @@ Timer get_2_rpi;
 Timer send_2_rpi;
 bool request = false, rpi = true;
 int period = 100, counter = 0;
-String strReceived, firstValue, secondValue, thirdValue, fourthValue, stringToSend;
+String strReceived, firstValue, secondValue, thirdValue, fourthValue;
 int commaIndex, secondCommaIndex, thirdCommaIndex, fourthCommaIndex;
 
 void setup()
@@ -39,7 +39,7 @@ void setup()
   // Set control-command thread
   control.onRun(command);
   control.setInterval(period*2);
-  controller.add(&control);
+  // controller.add(&control);
   
   // For encoder
   attachInterrupt(digitalPinToInterrupt(20), pulse_leftUp, RISING);
@@ -49,14 +49,15 @@ void setup()
 void loop()
 {
   // Serial link between Python (Raspberry in our case) and Arduino
-  bidirectional();
+  get_2_rpi.update(); 
+  send_2_rpi.update();
   
   // Main thread for motor control (5Hz) 
   if(control.shouldRun())
     control.run();
 }
 
-void command(){  
+void command(){ 
   if(rpi){
     leftDist = left_IRsensor.Obstacle();
     
@@ -74,28 +75,10 @@ void command(){
     leftUP_motor.setRPM(0.0, 0.0);
     righUP_motor.setRPM(0.0, 0.0);
   }
-
-  // Convert in string all encoders data
-  stringToSend.concat(String(leftUp_mes, 2));
-  stringToSend.concat(",");
-  stringToSend.concat(String(righUp_mes, 2));
-  stringToSend.concat(",");
-  stringToSend.concat(String(leftDist));
-  stringToSend.concat(",");
-  stringToSend.concat(String(leftDist));
-  stringToSend.concat("\n");
-}
-
-void bidirectional(){
-  get_2_rpi.update();
-    
-  // Send sensors data only if python write is not blocking
-  if(request)
-    send_2_rpi.update();
 }
 
 void getRPM_ref(){
- if(Serial.available()>0){
+  if(Serial.available()>0){
     // Read new speed rotation references
     strReceived = Serial.readStringUntil('\n');
     
@@ -123,14 +106,10 @@ void getRPM_ref(){
 }
 
 void sendRPM_mes(){
-  
-  // Send all data with one line
-  if(Serial.available()==0)
-    Serial.println(stringToSend);
-
-  // Reset for next transmission
-  stringToSend = "";
-  request = false;
+  if(request && Serial.available()==0){
+    Serial.print(String(leftUp_mes, 2) + "," + String(righUp_mes, 2) + "," + String(leftDist) + "," + String(leftDist) + "\n");
+    request = false;
+  }
 }
 
 void pulse_leftUp(){
@@ -139,4 +118,3 @@ void pulse_leftUp(){
 void pulse_righUp(){
   _pulse_righUp++;
 }
-
