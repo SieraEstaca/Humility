@@ -1,14 +1,3 @@
-/**
-__________________________________________________________________________________________________________
-
-				Space Rover Software Project
-
-	SiERA  	: 	Estaca Robotics Association
-	ESTACA 	: 	Transportation engineering school (France)
-__________________________________________________________________________________________________________
-
-*/
-
 #ifndef IRsensor_h
 #define IRsensor_h
 
