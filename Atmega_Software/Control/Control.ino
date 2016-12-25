@@ -1,9 +1,18 @@
+// Open-Source class
 #include <Thread.h>
-#include <Motor.h>
+#include <ThreadController.h>
 #include <Timer.h>
+// Our designed class
+#include <Motor.h>
+#include <IRsensor.h>
+
+// For IR sensor
+IRsensor left_IRsensor(A0);
+int leftDist = 0, righDist = 0;
 
 // For control loop
 Thread control = Thread();
+ThreadController controller = ThreadController();
 Motor leftUP_motor(7, 6);
 Motor righUP_motor(9, 8);
 float leftUp_ref = 0.0, righUp_ref = 0.0, leftDw_ref = 0.0, righDw_ref = 0.0; 
@@ -30,6 +39,7 @@ void setup()
   // Set control-command thread
   control.onRun(command);
   control.setInterval(period*2);
+  controller.add(&control);
   
   // For encoder
   attachInterrupt(digitalPinToInterrupt(20), pulse_leftUp, RISING);
@@ -46,8 +56,10 @@ void loop()
     control.run();
 }
 
-void command(){
+void command(){  
   if(rpi){
+    leftDist = left_IRsensor.Obstacle();
+    
     // Left Up Motor 
     leftUP_motor.setRPM(0.0, leftUp_ref);
     leftUp_mes = leftUP_motor.getRPM(int(_pulse_leftUp));
@@ -62,6 +74,16 @@ void command(){
     leftUP_motor.setRPM(0.0, 0.0);
     righUP_motor.setRPM(0.0, 0.0);
   }
+
+  // Convert in string all encoders data
+  stringToSend.concat(String(leftUp_mes, 2));
+  stringToSend.concat(",");
+  stringToSend.concat(String(righUp_mes, 2));
+  stringToSend.concat(",");
+  stringToSend.concat(String(leftDist));
+  stringToSend.concat(",");
+  stringToSend.concat(String(leftDist));
+  stringToSend.concat("\n");
 }
 
 void bidirectional(){
@@ -95,17 +117,12 @@ void getRPM_ref(){
  }
  else{
     counter++;
-    if(counter==20)
+    if(counter==30)
       rpi = false;
  }
 }
 
 void sendRPM_mes(){
-  // Convert in string all encoders data
-  stringToSend.concat(String(leftUp_mes, 2));
-  stringToSend.concat(",");
-  stringToSend.concat(String(righUp_mes, 2));
-  stringToSend.concat("\n");
   
   // Send all data with one line
   if(Serial.available()==0)
