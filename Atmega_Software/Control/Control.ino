@@ -1,58 +1,44 @@
 // Open-Source class
 #include <Thread.h>
-#include <ThreadController.h>
 #include <Timer.h>
 // Our designed class
 #include <Motor.h>
 #include <IRsensor.h>
+#include <Params.h>
 
-// For IR sensor
+/* INITIALIZE */ 
 IRsensor left_IRsensor(A0);
-int leftDist = 0, righDist = 0;
-
-// For control loop
-Thread control = Thread();
-// ThreadController controller = ThreadController();
-Motor leftUP_motor(7, 6);
-Motor righUP_motor(9, 8);
-float leftUp_ref = 0.0, righUp_ref = 0.0, leftDw_ref = 0.0, righDw_ref = 0.0; 
-float leftUp_mes = 0.0, righUp_mes = 0.0, leftDw_mes = 0.0, righDw_mes = 0.0;
-volatile int _pulse_leftUp = 0, _pulse_righUp = 0; 
-
-// For serial communication
+controlParams leftUp = {0, 0, 0}; Motor leftUP_motor(7, 6);
+controlParams rightUp = {0, 0, 0}; Motor rightUP_motor(9, 8);
 Timer get_2_rpi;
 Timer send_2_rpi;
-bool request = false, rpi = true;
-int period = 100, counter = 0;
-String strReceived, firstValue, secondValue, thirdValue, fourthValue;
-int commaIndex, secondCommaIndex, thirdCommaIndex, fourthCommaIndex;
+Thread control = Thread();
 
 void setup()
 {
   Serial.begin(9600);
   delay(1000);
   
-  // Init timer functions for arduino and rpi link
-  get_2_rpi.every(period, getRPM_ref);
-  send_2_rpi.every(period, sendRPM_mes);
+  // Timer setup
+  get_2_rpi.every(100, getRPM_ref);
+  send_2_rpi.every(100, sendRPM_mes);
   
-  // Set control-command thread
+  // Control thread setup
   control.onRun(command);
-  control.setInterval(period*2);
-  // controller.add(&control);
+  control.setInterval(200);
   
-  // For encoder
+  // Encoder setup
   attachInterrupt(digitalPinToInterrupt(20), pulse_leftUp, RISING);
   attachInterrupt(digitalPinToInterrupt(21), pulse_righUp, RISING);
 }
 
-void loop()
+void loop() /* frequency = 5 Hz */
 {
-  // Serial link between Python (Raspberry in our case) and Arduino
+  // Serial communication with Raspberry thread 
   get_2_rpi.update(); 
   send_2_rpi.update();
   
-  // Main thread for motor control (5Hz) 
+  // Main thread for motor control (and even IR sensor)
   if(control.shouldRun())
     control.run();
 }
@@ -62,18 +48,18 @@ void command(){
     leftDist = left_IRsensor.Obstacle();
     
     // Left Up Motor 
-    leftUP_motor.setRPM(0.0, leftUp_ref);
-    leftUp_mes = leftUP_motor.getRPM(int(_pulse_leftUp));
-    _pulse_leftUp = 0;
+    leftUP_motor.setRPM(0.0, leftUp.speed_ref);
+    leftUp.speed_mes = leftUP_motor.getRPM(int(leftUp.pulse_count));
+    leftUp.pulse_count = 0;
   
     // Right Up Motor 
-    righUP_motor.setRPM(0.0, righUp_ref);
-    righUp_mes = righUP_motor.getRPM(int(_pulse_righUp));
-    _pulse_righUp = 0;
+    rightUP_motor.setRPM(0.0, rightUp.speed_ref);
+    rightUp.speed_mes = rightUP_motor.getRPM(int(rightUp.pulse_count));
+    rightUp.pulse_count = 0;
   }
   else{
     leftUP_motor.setRPM(0.0, 0.0);
-    righUP_motor.setRPM(0.0, 0.0);
+    rightUP_motor.setRPM(0.0, 0.0);
   }
 }
 
@@ -91,8 +77,8 @@ void getRPM_ref(){
     thirdValue = strReceived.substring(secondCommaIndex+1, thirdCommaIndex);
     
     // Convert value
-    leftUp_ref = firstValue.toFloat();
-    righUp_ref = secondValue.toFloat();
+    leftUp.speed_ref = firstValue.toFloat();
+    rightUp.speed_ref = secondValue.toFloat();
     request = thirdValue;
 
     counter=0;
@@ -107,14 +93,14 @@ void getRPM_ref(){
 
 void sendRPM_mes(){
   if(request && Serial.available()==0){
-    Serial.print(String(leftUp_mes, 2) + "," + String(righUp_mes, 2) + "," + String(leftDist) + "," + String(leftDist) + "\n");
+    Serial.print(String(leftUp.speed_mes, 2) + "," + String(rightUp.speed_mes, 2) + "," + String(leftDist) + "," + String(leftDist) + "\n");
     request = false;
   }
 }
 
 void pulse_leftUp(){
-  _pulse_leftUp++;
+  leftUp.pulse_count++;
 }
 void pulse_righUp(){
-  _pulse_righUp++;
+  rightUp.pulse_count++;
 }
