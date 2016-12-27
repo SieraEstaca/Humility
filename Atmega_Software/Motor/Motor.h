@@ -1,14 +1,3 @@
-/**
-__________________________________________________________________________________________________________
-
-				Space Rover Software Project
-
-	SiERA  	: 	Estaca Robotics Association
-	ESTACA 	: 	Transportation engineering school (France)
-__________________________________________________________________________________________________________
-
-*/
-
 #ifndef Motor_h
 #define Motor_h
 

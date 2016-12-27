@@ -1,15 +1,3 @@
-/**
-__________________________________________________________________________________________________________
-
-				Space Rover Software Project
-
-	SiERA  	: 	Estaca Robotics Association
-	ESTACA 	: 	Transportation engineering school (France)
-__________________________________________________________________________________________________________
-
-*/
-
-
 #include "Arduino.h"
 #include "Motor.h"
 
@@ -55,7 +43,7 @@ float Motor::getRPM(int pulses){
        if(rpm >= 0.0 && rpm <= 100.0){
            rpm = 1.1554*rpm - 0.2193;
            rpm += -0.0001*rpm*rpm*rpm+0.007*rpm*rpm-0.1503*rpm+1.4415;
-           rpm_filt = rpm_filt+dt*(rpm-rpm_filt);
+           rpm_filt = rpm_filt+dt*(rpm-rpm_filt)/1000.0;
        }
        // Reinit
        timeold = millis();
@@ -66,5 +54,5 @@ float Motor::getRPM(int pulses){
 	else
         rpm_filt = 0.0;
 
-	return rpm;
+	return rpm_filt;
 }
