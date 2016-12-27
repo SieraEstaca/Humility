@@ -5,6 +5,8 @@ import cv2
 from math import cos, sin
 from sense_hat 	import SenseHat
 from time import sleep, time
+from picamera import PiCamera
+from picamera.array import PiRGBArray
 
 # Functions
 from tools import Timer
@@ -17,6 +19,7 @@ class Rover():
 		self.t_gui = 0.0
 		self.t_nav = 0.0
 		self.t_con = 0.0
+		self.t_vis = 0.0
 
 		# Accelerations init
 	        self.Ax = 0.0
@@ -57,8 +60,8 @@ class Rover():
 			start_time = time()
 			
 			# Calcul control reference
-			self.left_omega_ref = 14.000
-			self.righ_omega_ref = 14.000
+			self.left_omega_ref = 10.000
+			self.righ_omega_ref = 10.000
 			
 			# Process control
 			Timer(period, start_time)
@@ -106,7 +109,8 @@ class Rover():
 		righ_omega = ''
 		left_dist  = ''
 		righ_dist  = ''
-		period = 0.1                
+		period = 0.1
+		counter = 0     
 		logging.debug("Starting")
 		Timer(self.init_time, start_time)
 
@@ -149,4 +153,36 @@ class Rover():
 			# Process control
 			self.t_con = time() - start_time
 		
+		logging.debug("Exiting")
+
+	def Vision(self):
+		start_time = time()
+		cols = 320
+		rows = 240
+		camera = PiCamera()
+		camera.resolution = (cols, rows)
+		camera.framerate = 30
+		rawCapture = PiRGBArray(camera, size=(cols,rows))
+		period = 0.1
+		logging.debug("Starting")
+		Timer(self.init_time, start_time)
+		
+		for frame in camera.capture_continuous(rawCapture, format = "bgr", use_video_port = True):
+			start_time = time()
+
+			# Image processing			
+			image = frame.array
+			blur = cv2.blur(image,(5,5))
+			gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
+
+			# Break the loop
+			rawCapture.truncate(0)
+			if self.exit:
+				camera.close()
+				break			
+
+			# Process control
+			Timer(period, start_time)		
+			self.t_vis = time() - start_time
+
 		logging.debug("Exiting")
