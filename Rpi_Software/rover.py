@@ -2,19 +2,20 @@
 import logging
 import serial
 import cv2
-from math import cos, sin
+from math import cos, sin, pi
 from sense_hat 	import SenseHat
 from time import sleep, time
 from picamera import PiCamera
 from picamera.array import PiRGBArray
 
 # Functions
-from tools import Timer
+from tools import Timer, Filter, getDistance
 
 
 class Rover():
 
 	def __init__(self):
+
 		# Process frequency
 		self.t_gui = 0.0
 		self.t_nav = 0.0
@@ -24,13 +25,20 @@ class Rover():
 		# Accelerations init
 	        self.Ax = 0.0
         	self.Ay = 0.0
-	        self.Ax_last = 0.0
-        	self.Ay_last = 0.0
-		
+
+		# Target point
+		self.Xshift = 10
+		self.Yshift = 10
+		self.Wshift = 45		
+
 	        # Position init
-		self.dX = 0.0
-		self.dY = 0.0
-		self.th = 0.0
+		self.Xcurrent = 0.0
+		self.Ycurrent = 0.0
+		self.Wcurrent = 0.0
+
+		# Localisation error
+		self.distance_error = 0.0
+		self.angle_error = 0.0
 		
 		# Rotation Speed
 		self.left_omega_ref = 0.0
@@ -51,6 +59,7 @@ class Rover():
 
 					
 	def Guidance(self):
+
 		start_time = time()
 		period = 0.1
 		logging.debug("Starting")
@@ -58,7 +67,11 @@ class Rover():
 		
 		while not self.exit:			
 			start_time = time()
-			
+
+			# Calcul error
+			self.distance_error = getDistance(self.Xshift - self.Xcurrent, self.Yshift - self.Ycurrent)
+			self.angle_error = self.Wshift - self.Wcurrent			
+
 			# Calcul control reference
 			self.left_omega_ref = 10.000
 			self.righ_omega_ref = 10.000
@@ -71,7 +84,9 @@ class Rover():
 		
 		
 	def Navigation(self):
+
 		start_time = time()
+		filter = Filter(self.Ax, self.Ay, self.t_nav)
 		sense = SenseHat()		
 		period = 0.1
 		logging.debug("Starting")
@@ -79,21 +94,30 @@ class Rover():
 		
 		while not self.exit:			
 			start_time = time()
-			  
-			# Estimatation : IMU Kalman Filter
-			acceleration = sense.get_accelerometer_raw()
-			self.Ax = acceleration['x']*10
-			self.Ay = acceleration['y']*10
 
-			# Observation : WHEEL ODOMETRY
-			dRg = self.left_omega_mes*0.10*float(self.t_nav)
-			dRd = self.righ_omega_mes*0.10*float(self.t_nav)
-			dMoy = (dRg+dRg)*0.5
-			dDif = (dRd-dRg)*0.5
-			self.th = self.th + dDif/0.3
-			self.dX = self.dX + dMoy*cos(self.th)
-			self.dY = self.dY + dMoy*sin(self.th)
-	
+			# Observation model : Wheel Odometry
+                        dRg = self.left_omega_mes*0.10*float(self.t_nav)
+                        dRd = self.righ_omega_mes*0.10*float(self.t_nav)
+                        dMoy = (dRg+dRg)*0.5
+                        dDif = (dRd-dRg)*0.5
+                        self.Wcurrent = self.Wcurrent + dDif/0.3
+                        self.Xcurrent = self.Xcurrent + dMoy*cos(self.Wcurrent)
+                        self.Ycurrent = self.Ycurrent + dMoy*sin(self.Wcurrent)
+			  
+			### Prediction
+			# 1 - Estimatation model : IMU Kalman Filter
+			acceleration = sense.get_accelerometer_raw()
+			self.Ax , self.Ay = filter.moving_average(acceleration['x']*10, acceleration['y']*10, self.t_nav)
+
+			# 2 - Error Covariance
+
+			### Correction
+			# 1 - Compute Kalman gain
+
+			# 2 - Update estimation
+
+			# 3 - Update error covariance matric
+
 			# Process control
 			Timer(period, start_time)
 			self.t_nav = time() - start_time    
@@ -102,6 +126,7 @@ class Rover():
 
 
 	def Control(self):
+
 		start_time = time()		
 		sensorsData = serial.Serial('/dev/ttyACM0', baudrate = 9600, timeout = 0.25)
 		send_dummy = ''
@@ -155,13 +180,16 @@ class Rover():
 		
 		logging.debug("Exiting")
 
+
 	def Vision(self):
+
 		start_time = time()
+#		cv2.namedWindow('Vision', cv2.WINDOW_NORMAL)
 		cols = 320
 		rows = 240
 		camera = PiCamera()
 		camera.resolution = (cols, rows)
-		camera.framerate = 30
+		camera.framerate = 10
 		rawCapture = PiRGBArray(camera, size=(cols,rows))
 		period = 0.1
 		logging.debug("Starting")
@@ -172,8 +200,9 @@ class Rover():
 
 			# Image processing			
 			image = frame.array
-			blur = cv2.blur(image,(5,5))
-			gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
+#			blur = cv2.blur(image,(5,5))
+#			gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
+#			cv2.imshow('Vision', image)
 
 			# Break the loop
 			rawCapture.truncate(0)
@@ -183,6 +212,7 @@ class Rover():
 
 			# Process control
 			Timer(period, start_time)		
-			self.t_vis = time() - start_time
+			self.t_vis = time() - start_time 
 
+		cv2.destroyAllWindows()
 		logging.debug("Exiting")
