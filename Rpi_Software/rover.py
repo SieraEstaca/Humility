@@ -8,9 +8,11 @@ from time import sleep, time
 from picamera import PiCamera
 from picamera.array import PiRGBArray
 
-# Functions
-from tools import Timer, Filter, getDistance, Corrector, Saturation
-
+# Functions made by ourself
+from tools import Timer
+from filter import Filter
+from controller import Error, Corrector, Command
+from uart import Arduino
 
 class Rover():
 
@@ -37,7 +39,7 @@ class Rover():
 		self.Wcurrent = 0.0
 
 		# Localisation error
-		self.distance_error = getDistance(self.Xshift-self.Xcurrent, self.Yshift-self.Ycurrent)
+		self.distance_error = Error(self.Xshift-self.Xcurrent, self.Yshift-self.Ycurrent)
 		self.angle_error = self.Xcurrent - self.Xshift
 		
 		# Rotation Speed
@@ -59,16 +61,16 @@ class Rover():
 
 					
 	def Guidance(self):
-
 		start_time = time()
 		
 		# Init PID
-		distance = Corrector(0.7, 0.0, 0.3, self.distance_error)
-		angle = Corrector(0.7, 0.0, 0.3, self.angle_error)		
+		distance = Corrector(P = 0.7, I = 0.5, D = 0.3, init_error = self.distance_error, wind_Up = True)
+		angle = Corrector(P = 0.7, I = 0.5, D = 0.3, init_error = self.angle_error, wind_Up = True)		
 
 		# SetPoint saturation
-		saturation = Saturation(15.0, 8.0)
+		command = Command(15.0, 8.0)
 
+		# Thread setting
 		period = 0.1
 		logging.debug("Starting")
 		Timer(self.init_time, start_time)
@@ -77,7 +79,7 @@ class Rover():
 			start_time = time()
 
 			# Error
-			self.distance_error = getDistance(self.Xshift - self.Xcurrent, self.Yshift - self.Ycurrent)
+			self.distance_error = Error(self.Xshift - self.Xcurrent, self.Yshift - self.Ycurrent)
 			self.angle_error = self.Wshift - self.Wcurrent			
 
 			# PID
@@ -85,8 +87,8 @@ class Rover():
 			angl_cmd = angle.PID(self.angle_error, self.t_gui)
 
 			# Commands
-			self.left_omega_ref = saturation.Command(dist_cmd - angl_cmd)
-			self.righ_omega_ref = saturation.Command(dist_cmd + angl_cmd)
+			self.left_omega_ref = command.withSaturation(dist_cmd - angl_cmd)
+			self.righ_omega_ref = command.withSaturation(dist_cmd + angl_cmd)
 			
 			# Process control
 			Timer(period, start_time)
@@ -96,10 +98,13 @@ class Rover():
 		
 		
 	def Navigation(self):
-
 		start_time = time()
+
+		# Init IMU
 		filter = Filter(self.Ax, self.Ay, self.t_nav)
 		sense = SenseHat()		
+
+		# Thread setting
 		period = 0.1
 		logging.debug("Starting")
 		Timer(self.init_time, start_time)
@@ -138,54 +143,20 @@ class Rover():
 
 
 	def Control(self):
-
 		start_time = time()		
-		sensorsData = serial.Serial('/dev/ttyACM0', baudrate = 9600, timeout = 0.25)
-		send_dummy = ''
-		left_omega = ''
-		righ_omega = ''
-		left_dist  = ''
-		righ_dist  = ''
-		period = 0.1
-		counter = 0     
+
+		# Init serial communication with Arduino 
+		arduino = Arduino(period = 0.1)
+     
 		logging.debug("Starting")
 		Timer(self.init_time, start_time)
 
         	while not self.exit:
 			start_time = time()
 
-			# Send datas
-			sendTime = time()
-			send_dummy = str(self.left_omega_ref) + ',' + str(self.righ_omega_ref) + ',' + "true" + '\n' 
-			try:
-				sensorsData.flush()
-				sensorsData.write(unicode(send_dummy))
-				send_dummy = ''
-			except SerialTimeoutException:
-				break
-			Timer(period, sendTime)
-
-			# Get datas
-			getTime = time()
-			try:
-				textline = sensorsData.readline()
-				dataNums = textline.split(',')
-				if len(dataNums)==4:
-					left_omega = float(dataNums[0])
-					self.left_omega_mes = left_omega
-					righ_omega = float(dataNums[1])
-					self.righ_omega_mes = righ_omega
-					left_dist = float(dataNums[2])
-					self.left_dist = left_dist
-					righ_dist = float(dataNums[3])
-					self.righ_dist = righ_dist 
-				left_omega = ''
-				righ_omega = ''	
-				left_dist  = ''
-				righ_dist  = ''
-			except ValueError:
-				pass
-			Timer(period, getTime)	
+			# Bidirectionnal link with Arduino
+			arduino.sendDatas(self.left_omega_ref, self.righ_omega_ref)
+			self.left_omega_mes, self.righ_omega_mes, self.left_dist, self.righ_dist = arduino.getDatas()
 			
 			# Process control
 			self.t_con = time() - start_time
