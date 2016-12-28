@@ -1,7 +1,11 @@
+import sys
+sys.path.insert(0, "/home/pi/Projects/Humility/Rpi_Software/Task/")
+
 # Requirements
 import logging
 import serial
 import cv2
+from sys import path
 from math import cos, sin, pi
 from sense_hat 	import SenseHat
 from time import sleep, time

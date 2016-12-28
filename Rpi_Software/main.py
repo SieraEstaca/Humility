@@ -1,6 +1,9 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import sys
+sys.path.insert(0, "/home/pi/Projects/Humility/Rpi_Software/Task/")
+
 # Requirements
 import logging
 import psutil
