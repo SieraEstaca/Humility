@@ -50,7 +50,7 @@ try:
 		print " "
 		print color.BOLD + color.GREEN + 'GUIDANCE' + color.END 
 		print "%-20r %-10s" %("time process", round(Rover.t_gui,3))
-		print "%-20r %-10s %-20r %-10s" %("Distance error", round(Rover.distance_error,2), "Yaw error", round(Rover.angle_error,2))
+		print "%-20r %-10s %-20r %-10s" %("Distance error", round(Rover.distance_error,2), "Yaw error", round(Rover.angle_error*180/3.14,2))
 		print "%-20r %-10s %-20r %-10s" %("left_obstacle", Rover.left_dist, "righ_obstacle", Rover.righ_dist) 
 		print " "
 		print color.BOLD + color.BLUE + 'NAVIGATION' + color.END

@@ -6,7 +6,7 @@ import logging
 import serial
 import cv2
 from sys import path
-from math import cos, sin, pi
+from math import cos, sin, pi, fabs
 from sense_hat 	import SenseHat
 from time import sleep, time
 from picamera import PiCamera
@@ -15,7 +15,7 @@ from picamera.array import PiRGBArray
 # Functions made by ourself
 from tools import Timer
 from filter import Filter
-from controller import Error, Corrector, Command
+from controller import Error, Reset, Corrector, Command
 from uart import Arduino
 
 class Rover():
@@ -58,6 +58,7 @@ class Rover():
 		
 		# For multithreading
 		self.exit = False
+		self.GoTo = False
 		self.init_time = 4.95
 		logging.basicConfig(level=logging.DEBUG,
                     format='[%(levelname)s] (%(threadName)-10s) %(message)s',
@@ -68,11 +69,11 @@ class Rover():
 		start_time = time()
 		
 		# Init PID
-		distance = Corrector(P = 0.7, I = 0.5, D = 0.3, init_error = self.distance_error, wind_Up = True)
-		angle = Corrector(P = 0.7, I = 0.5, D = 0.3, init_error = self.angle_error, wind_Up = True)		
+		distance = Corrector(P = 1.3, I = 0.8, D = 0.0, init_error = self.distance_error, wind_Up = True)
+		angle = Corrector(P = 2.5, I = 1.4, D = 0.0, init_error = self.angle_error, wind_Up = True)
 
 		# SetPoint saturation
-		command = Command(15.0, 8.0)
+		command = Command(25.0, 10)
 
 		# Thread setting
 		period = 0.1
@@ -82,8 +83,15 @@ class Rover():
 		while not self.exit:			
 			start_time = time()
 
+			# GoTo waypoint up to ...
+			if fabs(self.Xshift-self.Xcurrent) < 0.5 and fabs(self.Yshift-self.Ycurrent) < 0.5:
+				self.GoTo = True
+				self.left_omega_ref = 0.0
+				self.righ_omega_ref = 0.0 
+
 			# Error
 			self.distance_error = Error(self.Xshift - self.Xcurrent, self.Yshift - self.Ycurrent)
+			self.Wcurrent = Reset(self.Wcurrent)
 			self.angle_error = self.Wshift - self.Wcurrent			
 
 			# PID
@@ -91,8 +99,9 @@ class Rover():
 			angl_cmd = angle.PID(self.angle_error, self.t_gui)
 
 			# Commands
-			self.left_omega_ref = command.withSaturation(dist_cmd - angl_cmd)
-			self.righ_omega_ref = command.withSaturation(dist_cmd + angl_cmd)
+			if not self.GoTo:
+				self.left_omega_ref = command.withSaturation(dist_cmd - angl_cmd)
+				self.righ_omega_ref = command.withSaturation(dist_cmd + angl_cmd)
 			
 			# Process control
 			Timer(period, start_time)
@@ -109,6 +118,9 @@ class Rover():
 		sense = SenseHat()		
 
 		# Thread setting
+		RPMtoRadPerSec = 2.0*pi/60.0
+		wheel_diameter = 0.1
+		convert = RPMtoRadPerSec*wheel_diameter
 		period = 0.1
 		logging.debug("Starting")
 		Timer(self.init_time, start_time)
@@ -117,8 +129,8 @@ class Rover():
 			start_time = time()
 
 			# Observation model : Wheel Odometry
-                        dRg = self.left_omega_mes*0.10*float(self.t_nav)
-                        dRd = self.righ_omega_mes*0.10*float(self.t_nav)
+                        dRg = self.left_omega_mes*convert*float(self.t_nav)
+                        dRd = self.righ_omega_mes*convert*float(self.t_nav)
                         dMoy = (dRg+dRg)*0.5
                         dDif = (dRd-dRg)*0.5
                         self.Wcurrent = self.Wcurrent + dDif/0.3

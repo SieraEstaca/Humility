@@ -1,8 +1,16 @@
+from math import pi
+
 def Error(dX, dY):
         distance = dX*dX+dY*dY
         distance = pow(distance, 0.5)
         return distance
 
+def Reset(angle):
+	if angle < 0.0:
+		angle += 2*pi
+	elif angle > 2*pi:
+		angle -= 2*pi
+	return angle
 
 class Corrector():
 
