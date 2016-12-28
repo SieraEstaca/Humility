@@ -70,7 +70,7 @@ class Rover():
 		
 		# Init PID
 		distance = Corrector(P = 1.3, I = 0.8, D = 0.0, init_error = self.distance_error, wind_Up = True)
-		angle = Corrector(P = 2.5, I = 1.4, D = 0.0, init_error = self.angle_error, wind_Up = True)
+		angle = Corrector(P = 1.9, I = 1.1, D = 0.0, init_error = self.angle_error, wind_Up = True)
 
 		# SetPoint saturation
 		command = Command(25.0, 10)

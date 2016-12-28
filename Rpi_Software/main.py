@@ -46,6 +46,7 @@ try:
 		system('cls' if name == 'nt' else 'clear')
 		print color.BOLD + '-------------------- LUNAR ROVER SOFTWARE ' + color.END
 		print "%-20r %-10s" %("CPU (%)", psutil.cpu_percent(interval = None, percpu = True))
+		print "%-20r %-10s" %("Target Reached", Rover.GoTo)
  		print " "
 		print " "
 		print color.BOLD + color.GREEN + 'GUIDANCE' + color.END 
@@ -55,7 +56,8 @@ try:
 		print " "
 		print color.BOLD + color.BLUE + 'NAVIGATION' + color.END
 		print "%-20r %-10s" %("time process", round(Rover.t_nav,3))
-		print "%-20r %-10s %-20r %-10s" %("current_X", round(Rover.Xcurrent,3), "current_Y", round(Rover.Ycurrent,3))
+		print "%-20r %-10s %-20r %-10s" %("Xshift", Rover.Xshift, "Yshift", Rover.Yshift)
+		print "%-20r %-10s %-20r %-10s" %("Xcurrent", round(Rover.Xcurrent,3), "Ycurrent", round(Rover.Ycurrent,3))
 		print "%-20r %-10s %-20r %-10s" %("Ax", round(Rover.Ax,3), "Ay", round(Rover.Ay,3))
 		print " " 
 		print color.BOLD + color.PURPLE + 'CONTROL' + color.END
