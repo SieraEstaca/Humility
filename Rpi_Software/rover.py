@@ -9,7 +9,7 @@ from picamera import PiCamera
 from picamera.array import PiRGBArray
 
 # Functions
-from tools import Timer, Filter, getDistance
+from tools import Timer, Filter, getDistance, Corrector, Saturation
 
 
 class Rover():
@@ -29,7 +29,7 @@ class Rover():
 		# Target point
 		self.Xshift = 10
 		self.Yshift = 10
-		self.Wshift = 45		
+		self.Wshift = 45*pi/180		
 
 	        # Position init
 		self.Xcurrent = 0.0
@@ -37,8 +37,8 @@ class Rover():
 		self.Wcurrent = 0.0
 
 		# Localisation error
-		self.distance_error = 0.0
-		self.angle_error = 0.0
+		self.distance_error = getDistance(self.Xshift-self.Xcurrent, self.Yshift-self.Ycurrent)
+		self.angle_error = self.Xcurrent - self.Xshift
 		
 		# Rotation Speed
 		self.left_omega_ref = 0.0
@@ -61,6 +61,14 @@ class Rover():
 	def Guidance(self):
 
 		start_time = time()
+		
+		# Init PID
+		distance = Corrector(0.7, 0.0, 0.3, self.distance_error)
+		angle = Corrector(0.7, 0.0, 0.3, self.angle_error)		
+
+		# SetPoint saturation
+		saturation = Saturation(15.0, 8.0)
+
 		period = 0.1
 		logging.debug("Starting")
 		Timer(self.init_time, start_time)
@@ -68,13 +76,17 @@ class Rover():
 		while not self.exit:			
 			start_time = time()
 
-			# Calcul error
+			# Error
 			self.distance_error = getDistance(self.Xshift - self.Xcurrent, self.Yshift - self.Ycurrent)
 			self.angle_error = self.Wshift - self.Wcurrent			
 
-			# Calcul control reference
-			self.left_omega_ref = 10.000
-			self.righ_omega_ref = 10.000
+			# PID
+			dist_cmd = distance.PID(self.distance_error, self.t_gui)
+			angl_cmd = angle.PID(self.angle_error, self.t_gui)
+
+			# Commands
+			self.left_omega_ref = saturation.Command(dist_cmd - angl_cmd)
+			self.righ_omega_ref = saturation.Command(dist_cmd + angl_cmd)
 			
 			# Process control
 			Timer(period, start_time)

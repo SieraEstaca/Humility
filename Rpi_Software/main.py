@@ -57,8 +57,8 @@ try:
 		print " " 
 		print color.BOLD + color.PURPLE + 'CONTROL' + color.END
 		print "%-20r %-10s" %("time process", round(Rover.t_con,3))
-		print "%-20r %-10s %-20r %-10s" %("left_speed_ref", Rover.left_omega_ref, "right_ref", Rover.righ_omega_ref)
-		print "%-20r %-10s %-20r %-10s" %("left_speed_mes", Rover.left_omega_mes, "right_mes", Rover.righ_omega_mes)
+		print "%-20r %-10s %-20r %-10s" %("left_speed_ref", round(Rover.left_omega_ref,3), "right_ref", round(Rover.righ_omega_ref,3))
+		print "%-20r %-10s %-20r %-10s" %("left_speed_mes", round(Rover.left_omega_mes,3), "right_mes", round(Rover.righ_omega_mes,3))
 		print " "
 		print " "
 		print color.BOLD + color.RED + 'VISION' + color.END
