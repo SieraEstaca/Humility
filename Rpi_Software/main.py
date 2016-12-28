@@ -40,14 +40,15 @@ try:
 	
 	# Print data thread
 	logging.debug("Starting")
-	sleep(5)	
+	sleep(5)
+	grid = '--------------------'	
 	while active_count() > 0:
 		start_time = time()
 		system('cls' if name == 'nt' else 'clear')
-		print color.BOLD + '-------------------- LUNAR ROVER SOFTWARE ' + color.END
+		print color.BOLD + grid + ' MARS ROVER SOFTWARE ' + grid + color.END
 		print "%-20r %-10s" %("CPU (%)", psutil.cpu_percent(interval = None, percpu = True))
 		print "%-20r %-10s" %("Target Reached", Rover.GoTo)
- 		print " "
+ 		print color.BOLD + grid + grid + grid + color.END
 		print " "
 		print color.BOLD + color.GREEN + 'GUIDANCE' + color.END 
 		print "%-20r %-10s" %("time process", round(Rover.t_gui,3))
@@ -65,12 +66,13 @@ try:
 		print "%-20r %-10s %-20r %-10s" %("left_speed_ref", round(Rover.left_omega_ref,3), "right_ref", round(Rover.righ_omega_ref,3))
 		print "%-20r %-10s %-20r %-10s" %("left_speed_mes", round(Rover.left_omega_mes,3), "right_mes", round(Rover.righ_omega_mes,3))
 		print " "
+		print color.BOLD + grid + grid + grid + color.END
 		print " "
 		print color.BOLD + color.RED + 'VISION' + color.END
 		print "%-20r %-10s" %("time process", round(Rover.t_vis, 3))
 		print " "
 		print " "
-		print "SiERA Rover, Team Humility"
+#		print color.BOLD + "SiERA Rover, Team Humility" + color.END
 		Timer(1.0, start_time)
 
 except KeyboardInterrupt:
