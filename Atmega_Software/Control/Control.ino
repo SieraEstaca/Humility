@@ -8,8 +8,10 @@
 
 /* INITIALIZE */ 
 IRsensor left_IRsensor(A0);
-controlParams leftUp = {0, 0, 0}; Motor leftUP_motor(7, 6);
-controlParams rightUp = {0, 0, 0}; Motor rightUP_motor(9, 8);
+controlParams leftUp  = {0, 0, 0};    Motor leftUP_motor(7, 6);
+controlParams rightUp = {0, 0, 0};    Motor rightUP_motor(10, 11);
+controlParams leftDw  = {0, 0, 0};    Motor leftDW_motor(9, 8);
+controlParams rightDw = {0, 0, 0};    Motor rightDW_motor(12, 13);
 Timer get_2_rpi;
 Timer send_2_rpi;
 Thread control = Thread();
@@ -29,7 +31,9 @@ void setup()
   
   // Encoder setup
   attachInterrupt(digitalPinToInterrupt(20), pulse_leftUp, RISING);
-  attachInterrupt(digitalPinToInterrupt(21), pulse_righUp, RISING);
+  attachInterrupt(digitalPinToInterrupt(18), pulse_righUp, RISING);
+  attachInterrupt(digitalPinToInterrupt(21), pulse_leftDw, RISING);
+  attachInterrupt(digitalPinToInterrupt(19), pulse_righDw, RISING);
 }
 
 void loop() /* frequency = 5 Hz */
@@ -42,6 +46,12 @@ void loop() /* frequency = 5 Hz */
   if(control.shouldRun())
     control.run();
 }
+
+
+
+/*
+----- MOTORS, IRsensors THREAD
+*/
 
 void command(){ 
   if(rpi){
@@ -56,12 +66,28 @@ void command(){
     rightUP_motor.setRPM(0.0, rightUp.speed_ref);
     rightUp.speed_mes = rightUP_motor.getRPM(int(rightUp.pulse_count));
     rightUp.pulse_count = 0;
+
+    // Left Dw Motor 
+    leftDW_motor.setRPM(0.0, leftDw.speed_ref);
+    leftDw.speed_mes = leftDW_motor.getRPM(int(leftDw.pulse_count));
+    leftDw.pulse_count = 0;
+  
+    // Right Dw Motor 
+    rightDW_motor.setRPM(0.0, rightDw.speed_ref);
+    rightDw.speed_mes = rightDW_motor.getRPM(int(rightDw.pulse_count));
+    rightDw.pulse_count = 0;
   }
   else{
     leftUP_motor.setRPM(0.0, 0.0);
     rightUP_motor.setRPM(0.0, 0.0);
+    leftDW_motor.setRPM(0.0, 0.0);
+    rightDW_motor.setRPM(0.0, 0.0);
   }
 }
+
+/*
+----- PYSERIAL
+*/
 
 void getRPM_ref(){
   if(Serial.available()>0){
@@ -79,6 +105,8 @@ void getRPM_ref(){
     // Convert value
     leftUp.speed_ref = firstValue.toFloat();
     rightUp.speed_ref = secondValue.toFloat();
+    leftDw.speed_ref = firstValue.toFloat();
+    rightDw.speed_ref = secondValue.toFloat();
     request = thirdValue;
 
     counter=0;
@@ -98,9 +126,19 @@ void sendRPM_mes(){
   }
 }
 
+/*
+----- ENCODER
+*/
+
 void pulse_leftUp(){
   leftUp.pulse_count++;
 }
 void pulse_righUp(){
   rightUp.pulse_count++;
+}
+void pulse_leftDw(){
+  leftDw.pulse_count++;
+}
+void pulse_righDw(){
+  rightDw.pulse_count++;
 }

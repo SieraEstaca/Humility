@@ -36,7 +36,7 @@ void Motor::setRPM(float rpm1, float rpm2)
 
 float Motor::getRPM(int pulses){
 	// Calcul RPM
-	if(pulses >= 12){
+	if(pulses >= 6){
        dt = millis()-timeold;
        rpm = PulsesToRPM*pulses/dt;
        // Filter value

@@ -1,16 +1,19 @@
 from math import pi
 
+
 def Error(dX, dY):
         distance = dX*dX+dY*dY
         distance = pow(distance, 0.5)
         return distance
 
+
 def Reset(angle):
-	if angle < 0.0:
+	if angle < -pi:
 		angle += 2*pi
-	elif angle > 2*pi:
+	elif angle > pi:
 		angle -= 2*pi
 	return angle
+
 
 class Corrector():
 
@@ -69,3 +72,25 @@ class Command():
                         SP = self.minSP
                 return SP
 
+
+class Derivate():
+
+	def __init__(self, last):
+		self.last_value = last
+		self.evolve = False
+		self.deriv_filt = 0.0
+
+	def Derivate(self, value, dt):
+		if dt==0.0:
+			dt = 1.0
+		value = (value-self.last_value)/dt
+		self.deriv_filt = self.deriv_filt + dt*(value - self.deriv_filt)
+		if self.deriv_filt < 0.0:
+			self.evolve = True
+		else:
+			self.evolve = False
+		self.last_value = value
+		return self.evolve
+			
+		
+		

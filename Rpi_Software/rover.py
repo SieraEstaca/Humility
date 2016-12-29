@@ -6,7 +6,7 @@ import logging
 import serial
 import cv2
 from sys import path
-from math import cos, sin, pi, fabs
+from math import cos, sin, pi, fabs, atan2
 from sense_hat 	import SenseHat
 from time import sleep, time
 from picamera import PiCamera
@@ -15,7 +15,7 @@ from picamera.array import PiRGBArray
 # Functions made by ourself
 from tools import Timer
 from filter import Filter
-from controller import Error, Reset, Corrector, Command
+from controller import Error, Reset, Corrector, Command, Derivate
 from uart import Arduino
 
 class Rover():
@@ -35,7 +35,7 @@ class Rover():
 		# Target point
 		self.Xshift = 10
 		self.Yshift = 10
-		self.Wshift = 45*pi/180		
+		self.Wshift = -45*pi/180		
 
 	        # Position init
 		self.Xcurrent = 0.0
@@ -44,7 +44,7 @@ class Rover():
 
 		# Localisation error
 		self.distance_error = Error(self.Xshift-self.Xcurrent, self.Yshift-self.Ycurrent)
-		self.angle_error = self.Xcurrent - self.Xshift
+		self.angle_error = atan2(self.Ycurrent-self.Yshift, self.Xcurrent-self.Xshift)
 		
 		# Rotation Speed
 		self.left_omega_ref = 0.0
@@ -59,6 +59,7 @@ class Rover():
 		# For multithreading
 		self.exit = False
 		self.GoTo = False
+		self.Traj_false = False
 		self.init_time = 4.95
 		logging.basicConfig(level=logging.DEBUG,
                     format='[%(levelname)s] (%(threadName)-10s) %(message)s',
@@ -69,11 +70,14 @@ class Rover():
 		start_time = time()
 		
 		# Init PID
-		distance = Corrector(P = 1.3, I = 0.8, D = 0.0, init_error = self.distance_error, wind_Up = True)
-		angle = Corrector(P = 1.9, I = 1.1, D = 0.0, init_error = self.angle_error, wind_Up = True)
+		distance = Corrector(P = 2.6, I = 0.65, D = 0.0, init_error = self.distance_error, wind_Up = True)
+		angle = Corrector(P = 8.4, I = 2.1, D = 0.0, init_error = self.angle_error, wind_Up = True)
 
 		# SetPoint saturation
-		command = Command(25.0, 10)
+		command = Command(26.0, 9.0)
+
+		# Trajectory checker
+		trajectory = Derivate(self.distance_error)
 
 		# Thread setting
 		period = 0.1
@@ -88,6 +92,11 @@ class Rover():
 				self.GoTo = True
 				self.left_omega_ref = 0.0
 				self.righ_omega_ref = 0.0 
+
+			self.Traj_false =  trajectory.Derivate(self.distance_error, self.t_gui)
+
+			# Define new angle Set Point
+			self.Wshift = atan2(self.Yshift-self.Ycurrent, self.Xshift-self.Xcurrent)
 
 			# Error
 			self.distance_error = Error(self.Xshift - self.Xcurrent, self.Yshift - self.Ycurrent)
@@ -163,17 +172,17 @@ class Rover():
 
 		# Init serial communication with Arduino 
 		arduino = Arduino(period = 0.1)
-     
+		     
 		logging.debug("Starting")
 		Timer(self.init_time, start_time)
 
         	while not self.exit:
 			start_time = time()
-
+			
 			# Bidirectionnal link with Arduino
 			arduino.sendDatas(self.left_omega_ref, self.righ_omega_ref)
 			self.left_omega_mes, self.righ_omega_mes, self.left_dist, self.righ_dist = arduino.getDatas()
-			
+
 			# Process control
 			self.t_con = time() - start_time
 		
