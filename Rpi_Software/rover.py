@@ -29,8 +29,8 @@ class Rover():
 		self.t_vis = 0.0
 
 		# Accelerations init
-	        self.Ax = 0.0
-        	self.Ay = 0.0
+	        self.Vx = 0.0
+        	self.Vy = 0.0
 
 		# Target point
 		self.Xshift = 10
@@ -43,7 +43,7 @@ class Rover():
 		self.Wcurrent = 0.0
 
 		# Localisation error
-		self.distance_error = Error(self.Xshift-self.Xcurrent, self.Yshift-self.Ycurrent)
+		# self.distance_error = Error(self.Xshift-self.Xcurrent, self.Yshift-self.Ycurrent)
 		self.angle_error = atan2(self.Ycurrent-self.Yshift, self.Xcurrent-self.Xshift)
 		
 		# Rotation Speed
@@ -70,14 +70,15 @@ class Rover():
 		start_time = time()
 		
 		# Init PID
-		distance = Corrector(P = 2.6, I = 0.65, D = 0.0, init_error = self.distance_error, wind_Up = True)
-		angle = Corrector(P = 8.4, I = 2.1, D = 0.0, init_error = self.angle_error, wind_Up = True)
+		# distance = Corrector(P = 2.6, I = 0.65, D = 0.0, init_error = self.distance_error, wind_Up = True)
+		average_cmd = 16.5
+		angle = Corrector(P = 5.0, I = 0.0, D = 1.0, init_error = self.angle_error, wind_Up = True)
 
 		# SetPoint saturation
-		command = Command(26.0, 9.0)
+		command = Command(25.0, 5.0)
 
 		# Trajectory checker
-		trajectory = Derivate(self.distance_error)
+#		trajectory = Derivate(self.distance_error)
 
 		# Thread setting
 		period = 0.1
@@ -88,29 +89,29 @@ class Rover():
 			start_time = time()
 
 			# GoTo waypoint up to ...
-			if fabs(self.Xshift-self.Xcurrent) < 0.5 and fabs(self.Yshift-self.Ycurrent) < 0.5:
-				self.GoTo = True
-				self.left_omega_ref = 0.0
-				self.righ_omega_ref = 0.0 
+			if fabs(self.Xshift-self.Xcurrent) < 0.8 and fabs(self.Yshift-self.Ycurrent) < 0.8:
+				if self.left_omega_ref < 5.0 and self.righ_omega_ref < 5.0: 
+					self.GoTo = True
+				self.left_omega_ref = self.left_omega_ref + self.t_gui*(0.0-self.left_omega_ref)
+				self.righ_omega_ref = self.righ_omega_ref + self.t_gui*(0.0-self.righ_omega_ref)
 
-			self.Traj_false =  trajectory.Derivate(self.distance_error, self.t_gui)
+#			self.Traj_false =  trajectory.Derivate(self.distance_error, self.t_gui)
 
 			# Define new angle Set Point
 			self.Wshift = atan2(self.Yshift-self.Ycurrent, self.Xshift-self.Xcurrent)
 
 			# Error
-			self.distance_error = Error(self.Xshift - self.Xcurrent, self.Yshift - self.Ycurrent)
 			self.Wcurrent = Reset(self.Wcurrent)
 			self.angle_error = self.Wshift - self.Wcurrent			
 
 			# PID
-			dist_cmd = distance.PID(self.distance_error, self.t_gui)
+			# dist_cmd = distance.PID(self.distance_error, self.t_gui)
 			angl_cmd = angle.PID(self.angle_error, self.t_gui)
 
 			# Commands
 			if not self.GoTo:
-				self.left_omega_ref = command.withSaturation(dist_cmd - angl_cmd)
-				self.righ_omega_ref = command.withSaturation(dist_cmd + angl_cmd)
+				self.left_omega_ref = command.withSaturation(average_cmd - angl_cmd)
+				self.righ_omega_ref = command.withSaturation(average_cmd + angl_cmd)
 			
 			# Process control
 			Timer(period, start_time)
@@ -118,47 +119,25 @@ class Rover():
 		
 		logging.debug("Exiting")
 		
-		
+	
 	def Navigation(self):
 		start_time = time()
 
 		# Init IMU
-		filter = Filter(self.Ax, self.Ay, self.t_nav)
+		Kalman = Filter()
 		sense = SenseHat()		
+		sense.set_imu_config(False, True, True)
 
 		# Thread setting
-		RPMtoRadPerSec = 2.0*pi/60.0
-		wheel_diameter = 0.1
-		convert = RPMtoRadPerSec*wheel_diameter
 		period = 0.1
 		logging.debug("Starting")
 		Timer(self.init_time, start_time)
-		
+
 		while not self.exit:			
 			start_time = time()
 
-			# Observation model : Wheel Odometry
-                        dRg = self.left_omega_mes*convert*float(self.t_nav)
-                        dRd = self.righ_omega_mes*convert*float(self.t_nav)
-                        dMoy = (dRg+dRg)*0.5
-                        dDif = (dRd-dRg)*0.5
-                        self.Wcurrent = self.Wcurrent + dDif/0.3
-                        self.Xcurrent = self.Xcurrent + dMoy*cos(self.Wcurrent)
-                        self.Ycurrent = self.Ycurrent + dMoy*sin(self.Wcurrent)
-			  
-			### Prediction
-			# 1 - Estimatation model : IMU Kalman Filter
-			acceleration = sense.get_accelerometer_raw()
-			self.Ax , self.Ay = filter.moving_average(acceleration['x']*10, acceleration['y']*10, self.t_nav)
-
-			# 2 - Error Covariance
-
-			### Correction
-			# 1 - Compute Kalman gain
-
-			# 2 - Update estimation
-
-			# 3 - Update error covariance matric
+			Kalman.Prediction(self.left_omega_mes, self.righ_omega_mes)
+			self.Xcurrent, self.Ycurrent, self.Wcurrent, self.Vx, self.Vy = Kalman.Update()
 
 			# Process control
 			Timer(period, start_time)
