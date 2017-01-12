@@ -47,7 +47,7 @@ try:
 	while active_count() > 0:
 		start_time = time()
 		Traj != Rover.Traj_false
-#		system('cls' if name == 'nt' else 'clear')
+		system('cls' if name == 'nt' else 'clear')
 		print color.BOLD + grid + ' MARS ROVER SOFTWARE ' + grid + grid + grid + color.END
 		print "%-20r %-10s" %("CPU (%)", psutil.cpu_percent(interval = None, percpu = True))
 		print "%-20r %-10s %-20r %-10s" %("Target Reached", Rover.GoTo, "Trajectory", Traj)

@@ -1,6 +1,7 @@
 import numpy as np
 from sense_hat  import SenseHat
 from math import cos, sin, pi
+from controller import Reset
 
 class Filter():
 
@@ -54,7 +55,6 @@ class Filter():
 
 		# Sensors noise matrix
 		self.R = np.array([	[1]])
-		print self.Ct
 
 	def Prediction(self, wR, wL):
 		T = 0.1
@@ -62,17 +62,14 @@ class Filter():
 		RPMtoRadPerSec = 2.0*pi/60.0
 		L = 0.30
 		
-		# Observation
+		# Inputs
 		acceleration = self.sense.get_accelerometer_raw()
 		Ax = acceleration['x']*10
 		Ay = acceleration['y']*10
-		self.Yaw, self.pitch, self.roll = self.sense.get_orientation_radians().values()
-
 		self.Wr = wR*RPMtoRadPerSec
 		self.Wl = wL*RPMtoRadPerSec
 		self.Ax = self.Ax + T*(Ax - self.Ax)
-		self.Ay = self.Ay + T*(Ay - self.Ay)
-		self.Yaw = self.Yaw		
+		self.Ay = self.Ay + T*(Ay - self.Ay)	
 
 		# Commands matrix
 		U = np.array([  [self.Ax],
@@ -81,8 +78,8 @@ class Filter():
                                 [self.Wl]])
 
 		# Commands transition matrix
-                B = np.array([  [T*T*0.5,0      ,0              , 0             ],
-                                [0      ,T*T*0.5,0              , 0             ],
+                B = np.array([  [T*T*0.0,0      ,0              , 0             ],
+                                [0      ,T*T*0.0,0              , 0             ],
                                 [0      ,0      ,r*T/L          , -r*T/L        ],
                                 [0      ,0      ,r*cos(self.Yaw)*0.5 , r*cos(self.Yaw)*0.5],
                                 [0      ,0      ,r*sin(self.Yaw)*0.5 , r*sin(self.Yaw)*0.5],
@@ -92,9 +89,12 @@ class Filter():
 		temp = np.dot(self.A, self.P)
 		self.P = np.dot(temp, self.At) + self.Q
 
+		return self.X[1,0], self.X[2,0], self.X[3,0], self.X[4,0], self.X[5,0]
 
 	def Update(self):
 		# Observation
+		self.Yaw, self.pitch, self.roll = self.sense.get_orientation_radians().values()
+                self.Yaw = Reset(self.Yaw)
 		Z = np.array([[self.Yaw]])
 		# Gain
 		temp = np.dot(self.C, self.P)
@@ -108,7 +108,7 @@ class Filter():
 		S = Z - np.dot(self.C, self.X)
 		self.X = self.X + np.dot(K,S)
 
-		self.Yaw = self.X[3,0] 
+		self.Yaw = Reset(self.X[3,0]) 
 
 		return self.X[1,0], self.X[2,0], self.X[3,0], self.X[4,0], self.X[5,0]
 

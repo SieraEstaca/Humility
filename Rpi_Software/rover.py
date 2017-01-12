@@ -7,7 +7,6 @@ import serial
 import cv2
 from sys import path
 from math import cos, sin, pi, fabs, atan2
-from sense_hat 	import SenseHat
 from time import sleep, time
 from picamera import PiCamera
 from picamera.array import PiRGBArray
@@ -33,9 +32,9 @@ class Rover():
         	self.Vy = 0.0
 
 		# Target point
-		self.Xshift = 10
-		self.Yshift = 10
-		self.Wshift = -45*pi/180		
+		self.Xshift = 5
+		self.Yshift = 0
+		self.Wshift = -0*pi/180		
 
 	        # Position init
 		self.Xcurrent = 0.0
@@ -123,10 +122,7 @@ class Rover():
 	def Navigation(self):
 		start_time = time()
 
-		# Init IMU
 		Kalman = Filter()
-		sense = SenseHat()		
-		sense.set_imu_config(False, True, True)
 
 		# Thread setting
 		period = 0.1
@@ -136,8 +132,8 @@ class Rover():
 		while not self.exit:			
 			start_time = time()
 
-			Kalman.Prediction(self.left_omega_mes, self.righ_omega_mes)
-			self.Xcurrent, self.Ycurrent, self.Wcurrent, self.Vx, self.Vy = Kalman.Update()
+			self.Xcurrent, self.Ycurrent, self.Wcurrent, self.Vx, self.Vy = Kalman.Prediction(self.left_omega_mes, self.righ_omega_mes)
+			# self.Xcurrent, self.Ycurrent, self.Wcurrent, self.Vx, self.Vy = Kalman.Update()
 
 			# Process control
 			Timer(period, start_time)
