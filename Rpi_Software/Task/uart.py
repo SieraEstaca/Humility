@@ -10,7 +10,7 @@ class Arduino():
 		self.sensorsData = serial.Serial(
 			port = '/dev/ttyACM0', 
 			baudrate = 9600, 
-			timeout = 0.25)
+			timeout = 1.0)
 
 		# getDatas params
 		self.val1 = 0.0
