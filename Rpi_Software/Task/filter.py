@@ -13,7 +13,7 @@ class Filter():
 		# Rover constants
 		self.g = 9.81 	# m/s2
 		self.r = 0.045 	# Wheel Radius (m)
-		self.L = 0.3 	# WheelBase (m)		
+		self.L = 0.21 	# WheelBase (m)		
 		self.Wr = 0.0	# RPM
 		self.Wl = 0.0	# RPM
 
@@ -42,7 +42,7 @@ class Filter():
 					[0, 0]])
 
 		# Sensors standard deviation
-		sigmaOdo = 0.1*(pi/180)
+		sigmaOdo = 1*(pi/180) #rad
 		sigmaDerive = (20/3600)*(pi/180) #rad  # 20 deg/h
 		sigmaGyro = 1*(pi/180) #rad
 
@@ -51,7 +51,7 @@ class Filter():
 					[0, pow(sigmaDerive,2)]])
 
 		# Commands transition matrix
-		self.B = np.array([	[(4*pi*T*self.r)/(60*self.L), -(4*pi*T*self.r)/(60*self.L)],
+		self.B = np.array([	[(2*pi*T*self.r)/(60*self.L), -(2*pi*T*self.r)/(60*self.L)],
 					[0 			    , 0]])
 
 		# Sensors noise matrix
@@ -80,8 +80,7 @@ class Filter():
 	def Update(self):
 		# Observation
 		yaw, pitch, roll = self.sense.get_orientation_radians().values()
-		yaw = -yaw
-		self.Yaw = Reset(yaw)
+		self.Yaw = Reset(-yaw)
 		# self.Yaw_filt = Reset(self.Yaw_filt + 0.1*(yaw-self.Yaw_filt)) 
                 # self.Yaw = Reset(self.Yaw_filt)
 		Z = np.array([[self.Yaw]])

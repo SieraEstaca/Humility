@@ -34,14 +34,14 @@ class Rover():
 
                 # Define waypoints
                 self.i = 0
-                self.Xshift = [0, 1.5, 1.5, 0]
-                self.Yshift = [1.5, 1.5, 0, 0]
+                self.Xshift = [1.5, 1.5, 0, 0]
+                self.Yshift = [0, 1.5, 0, 0]
                 self.Wshift = atan2(self.Yshift[0]-0.0, self.Xshift[0]-0.0)
                 
                 # Position init
                 self.Xcurrent = 0.0
                 self.Ycurrent = 0.0
-                self.Wcurrent = 90.0*pi/180 # radians
+                self.Wcurrent = 0.0 # radians
 		self.Wgyro = 0.0
 
                 # Localisation error
@@ -75,7 +75,7 @@ class Rover():
 		
 		# Rover Parameters
 		self.R = 0.045 # m
-		self.L = 0.3 #m
+		self.L = 0.21 #m
 
                 # For multithreading
                 self.fsm = "GoTo"
@@ -280,8 +280,7 @@ class Rover():
 					self.Kalman.Prediction(omega_righ, omega_left)
 					self.Wcurrent, self.Wgyro = self.Kalman.Update()
 					self.Wcurrent = Reset(self.Wcurrent)
-                                        print(self.Wcurrent)
-					dmoy = self.R*self.t_nav*(omega_righ + omega_left)*0.5*convert
+                                        dmoy = self.R*self.t_nav*(omega_righ + omega_left)*0.5*convert
 					self.Xcurrent = self.Xcurrent + dmoy*cos(self.Wcurrent)
                                 	self.Ycurrent = self.Ycurrent + dmoy*sin(self.Wcurrent)
 
