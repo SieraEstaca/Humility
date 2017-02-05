@@ -35,8 +35,8 @@ class Rover():
 
                 # Define waypoints
                 self.i = 0
-                self.Xshift = [2.5, 1.5,    0, 0]
-                self.Yshift = [  0,-1.5, -1.5, 0]
+                self.Xshift = [3.7, 3.7]
+                self.Yshift = [  0,+3.2]
                 self.Wshift = atan2(self.Yshift[0]-0.0, self.Xshift[0]-0.0)
                 
                 # Position init
@@ -59,8 +59,8 @@ class Rover():
                 self.Precision = 0.05
                 self.angle_precision = 5*pi/180.0
 		self.obstacleDistanceStop = 150 # mm
-                self.left_dist = self.obstacleDistanceStop + 100 # mm
-                self.righ_dist = self.obstacleDistanceStop + 100 # mm 
+                self.left_dist = 250 # mm
+                self.righ_dist = 250 # mm 
 		        
 		# Avoidance manoeuvre
                 self.angleAvoidance = 45*pi/180
@@ -77,7 +77,7 @@ class Rover():
 		
 		# Rover Parameters
 		self.R = 0.045 	# m
-		self.L = 0.37 	# m
+		self.L = 0.750 	# m
 
                 # For multithreading
 		self.modeFSM = 0 # 0 = GOTO, 1 = TURN, 2 = END
@@ -131,7 +131,7 @@ class Rover():
                                 self.righ_omega_ref = command.withSaturation(average_cmd + angl_cmd)
                                 
 				# Obstacle detection
-                                if self.left_dist < self.obstacleDistanceStop or self.righ_dist < self.obstacleDistanceStop:
+                                if 0 > self.obstacleDistanceStop or 0 > self.obstacleDistanceStop: 
                                         self.fsm = 'Recul'
                                         self.left_omega_ref = 0.0
                                         self.righ_omega_ref = 0.0
@@ -153,7 +153,7 @@ class Rover():
                                         self.fsm = 'End'
                         
                         if self.fsm == 'Turn':                                  
-                                self.modeFSM = 1
+                                self.modeFSM = 0
 				# Command loop to calculate new Set Point
                                 try:
 					self.Wshift = atan2(self.Yshift[self.i]-self.Yshift[self.i-1], self.Xshift[self.i]-self.Xshift[self.i-1])
@@ -166,11 +166,13 @@ class Rover():
                                 if self.angle_error < 0:
                                         self.sens = 'Right'
                                         self.left_omega_ref = +average_cmd*coeff
-                                        self.righ_omega_ref = -average_cmd*coeff
+                                        self.righ_omega_ref = -self.left_omega_ref
                                 else:
                                         self.sens = 'Left'
-                                        self.left_omega_ref = -average_cmd*coeff
+                                        self.left_omega_ref = -self.righ_omega_ref
                                         self.righ_omega_ref = +average_cmd*coeff
+				print(self.left_omega_ref)
+				print(self.righ_omega_ref)
 
                                 # To stop the loop
                                 if fabs(Reset(self.Wshift-self.Wcurrent)) < self.angle_precision:

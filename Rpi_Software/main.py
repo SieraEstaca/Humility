@@ -46,7 +46,7 @@ try:
 	grid = '--------------------'	
 	while active_count() > 0:
 		start_time = time()
-#		system('cls' if name == 'nt' else 'clear')
+		system('cls' if name == 'nt' else 'clear')
 		print color.BOLD + grid + ' MARS ROVER SOFTWARE ' + grid + grid + grid + color.END
 		print "%-20r %-10s" %("CPU (%)", psutil.cpu_percent(interval = None, percpu = True))
 		print "%-20r %-10s" %("Target Reached", Rover.fsm)
@@ -59,7 +59,10 @@ try:
 		print " "
 		print color.BOLD + color.BLUE + 'NAVIGATION' + color.END
 		print "%-20r %-10s" %("time process", round(Rover.t_nav,3))
-		print "%-20r %-10s %-20r %-10s %-20r %-10s" %("Xshift", Rover.Xshift[Rover.i], "Yshift", Rover.Yshift[Rover.i], "Heading shift", round(Rover.Wshift*to_angle,3))
+		try:
+			print "%-20r %-10s %-20r %-10s %-20r %-10s" %("Xshift", Rover.Xshift[Rover.i], "Yshift", Rover.Yshift[Rover.i], "Heading shift", round(Rover.Wshift*to_angle,3))
+		except IndexError:
+			pass
 		print "%-20r %-10s %-20r %-10s %-20r %-10s" %("Xcurrent", round(Rover.Xcurrent,3), "Ycurrent", round(Rover.Ycurrent,3), "Heading current", round(Rover.Wcurrent*to_angle,3))
 		print "%-20r %-10s" %("Wgyro", round(Rover.Wgyro*180/3.14,3)) 
 		print " " 
@@ -70,15 +73,11 @@ try:
 		print " "
 		print color.BOLD + grid + grid + grid + grid + grid + color.END
 		print " "
-		print color.BOLD + color.RED + 'VISION' + color.END
-		# print "%-20r %-10s" %("time process", round(Vision.t_vis, 3))
-		print " "
 		print " "
 		print color.BOLD + "SiERA Rover, Team Humility" + color.END
 		Timer(1.0, start_time)
 
 except KeyboardInterrupt:
 	Rover.fsm = 'Stop'
-	#Rover.exit = True
 	logging.debug("Exiting")
 	raise
