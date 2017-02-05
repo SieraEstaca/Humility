@@ -21,8 +21,8 @@ class Filter():
                 self.Ax = 0.0	# m/s2
                 self.Ay = 0.0	# m/s2
 		T = 0.1 	# s		
-		self.Yaw = 0.0	# radians
-		self.Yaw_filt=0 # radians
+		# self.Yaw = 0.0	# radians
+		# self.Yaw_filt=0 # radians
 
 		# Initialize State vector
                 self.X = np.array([  	[0.0],
@@ -43,15 +43,15 @@ class Filter():
 
 		# Sensors standard deviation
 		sigmaOdo = 1*(pi/180) #rad
-		sigmaDerive = (20/3600)*(pi/180) #rad  # 20 deg/h
-		sigmaGyro = 1*(pi/180) #rad
+		sigmaDerive = (0/3600)*(pi/180) #rad  # 20 deg/h
+		sigmaGyro = 25*(pi/180) #rad
 
 		# State noise matrix
                 self.Q = np.array([  	[pow(sigmaOdo,2), 0],
 					[0, pow(sigmaDerive,2)]])
 
 		# Commands transition matrix
-		self.B = np.array([	[(2*pi*T*self.r)/(60*self.L), -(2*pi*T*self.r)/(60*self.L)],
+		self.B = np.array([	[(4*pi*T*self.r)/(60*self.L), -(4*pi*T*self.r)/(60*self.L)],
 					[0 			    , 0]])
 
 		# Sensors noise matrix
@@ -80,10 +80,7 @@ class Filter():
 	def Update(self):
 		# Observation
 		yaw, pitch, roll = self.sense.get_orientation_radians().values()
-		self.Yaw = Reset(-yaw)
-		# self.Yaw_filt = Reset(self.Yaw_filt + 0.1*(yaw-self.Yaw_filt)) 
-                # self.Yaw = Reset(self.Yaw_filt)
-		Z = np.array([[self.Yaw]])
+		Z = np.array([[Reset(-yaw)]])
 
 		# Gain
 		temp = np.dot(self.C, self.P)
@@ -102,5 +99,5 @@ class Filter():
 		self.X = self.X + np.dot(K,S)
 		self.X[0,0] = Reset(self.X[0,0]) 
 		
-		return self.X[0,0], self.Yaw
+		return self.X[0,0], -yaw
 

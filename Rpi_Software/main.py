@@ -13,7 +13,7 @@ from time import sleep, time
 from os import system, name
 
 # Functions
-from rover import Rover 
+from rover import Rover, Vision
 from tools import Timer, color
 
 try:
@@ -24,7 +24,7 @@ try:
 	Guidance = Thread(name = "GUIDANCE", target = Rover.Guidance)
 	Navigation = Thread(name = "NAVIGATION", target = Rover.Navigation)
 	Control = Thread(name = "CONTROL", target = Rover.Control)
-	Vision = Thread(name = "VISION", target = Rover.Vision)
+	Vision = Thread(name = "VISION", target = Vision)
 	
 	# Daemonize thread
 	Guidance.daemon	= True
@@ -36,7 +36,7 @@ try:
 	Guidance.start()
     	Navigation.start()
     	Control.start()
-	Vision.start()
+	#Vision.start()
 	
 	# Print data thread
 	logging.debug("Starting")
@@ -46,7 +46,7 @@ try:
 	grid = '--------------------'	
 	while active_count() > 0:
 		start_time = time()
-		system('cls' if name == 'nt' else 'clear')
+#		system('cls' if name == 'nt' else 'clear')
 		print color.BOLD + grid + ' MARS ROVER SOFTWARE ' + grid + grid + grid + color.END
 		print "%-20r %-10s" %("CPU (%)", psutil.cpu_percent(interval = None, percpu = True))
 		print "%-20r %-10s" %("Target Reached", Rover.fsm)
@@ -71,13 +71,14 @@ try:
 		print color.BOLD + grid + grid + grid + grid + grid + color.END
 		print " "
 		print color.BOLD + color.RED + 'VISION' + color.END
-		print "%-20r %-10s" %("time process", round(Rover.t_vis, 3))
+		# print "%-20r %-10s" %("time process", round(Vision.t_vis, 3))
 		print " "
 		print " "
 		print color.BOLD + "SiERA Rover, Team Humility" + color.END
 		Timer(1.0, start_time)
 
 except KeyboardInterrupt:
-	Rover.exit = True
+	Rover.fsm = 'Stop'
+	#Rover.exit = True
 	logging.debug("Exiting")
 	raise

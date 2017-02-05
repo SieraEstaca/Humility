@@ -18,11 +18,11 @@ class Arduino():
 		self.val3 = 0.0
 		self.val4 = 0.0
 
-	def sendDatas(self, val_a, val_b):
+	def sendDatas(self, val_a, val_b, val_c):
 		start_time = time()
 
 		# Send datas
-		send_dummy = str(val_a) + ',' + str(val_b) + ',' + "true" + '\n'
+		send_dummy = str(val_a) + ',' + str(val_b) + ',' + "true" + ',' + str(val_c) + '\n'
 		self.sensorsData.flush()
 		self.sensorsData.write(send_dummy)
 

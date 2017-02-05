@@ -4,7 +4,8 @@ sys.path.insert(0, "/home/pi/Projects/Humility/Rpi_Software/Task/")
 # Requirements
 import logging 
 import serial 
-import cv2 
+import cv2
+import numpy as np
 from sys import path 
 from math import cos, sin, pi, fabs, atan2 
 from time import sleep, time 
@@ -34,14 +35,15 @@ class Rover():
 
                 # Define waypoints
                 self.i = 0
-                self.Xshift = [1.5, 1.5, 0, 0]
-                self.Yshift = [0, 1.5, 0, 0]
+                self.Xshift = [2.5, 1.5,    0, 0]
+                self.Yshift = [  0,-1.5, -1.5, 0]
                 self.Wshift = atan2(self.Yshift[0]-0.0, self.Xshift[0]-0.0)
                 
                 # Position init
                 self.Xcurrent = 0.0
                 self.Ycurrent = 0.0
                 self.Wcurrent = 0.0 # radians
+		self.WcurrentOdo = 0.0 
 		self.Wgyro = 0.0
 
                 # Localisation error
@@ -54,7 +56,7 @@ class Rover():
                 self.righ_omega_mes = 0.0
                 
                 # IRsensor parameters
-                self.Precision = 0.15
+                self.Precision = 0.05
                 self.angle_precision = 5*pi/180.0
 		self.obstacleDistanceStop = 150 # mm
                 self.left_dist = self.obstacleDistanceStop + 100 # mm
@@ -74,10 +76,11 @@ class Rover():
 		self.Kalman = Filter()
 		
 		# Rover Parameters
-		self.R = 0.045 # m
-		self.L = 0.21 #m
+		self.R = 0.045 	# m
+		self.L = 0.37 	# m
 
                 # For multithreading
+		self.modeFSM = 0 # 0 = GOTO, 1 = TURN, 2 = END
                 self.fsm = "GoTo"
                 self.sens = 'Right'
                 self.exit = False
@@ -150,16 +153,17 @@ class Rover():
                                         self.fsm = 'End'
                         
                         if self.fsm == 'Turn':                                  
-                                # Command loop to calculate new Set Point
+                                self.modeFSM = 1
+				# Command loop to calculate new Set Point
                                 try:
-                                        self.Wshift = atan2(self.Yshift[self.i]-self.Yshift[self.i-1], self.Xshift[self.i]-self.Xshift[self.i-1])
-                                except ZeroDivisionError:
-                                        if self.Y[shift.i] > self.Y[shift.i-1]:
+					self.Wshift = atan2(self.Yshift[self.i]-self.Yshift[self.i-1], self.Xshift[self.i]-self.Xshift[self.i-1])
+				except ZeroDivisionError:
+                                        if (self.Y[shift.i]-self.Y[shift.i-1]) > 0:
                                                 self.Wshift = +pi/2
                                         else:
                                                 self.Wshift = -pi/2
                                 self.angle_error = Reset(self.Wshift - Wcurrent_last)                   
-                                if self.angle_error > 0:
+                                if self.angle_error < 0:
                                         self.sens = 'Right'
                                         self.left_omega_ref = +average_cmd*coeff
                                         self.righ_omega_ref = -average_cmd*coeff
@@ -171,6 +175,7 @@ class Rover():
                                 # To stop the loop
                                 if fabs(Reset(self.Wshift-self.Wcurrent)) < self.angle_precision:
                                         self.fsm = 'GoTo'
+					self.modeFSM = 0
 
 			if self.fsm == 'Deviation':                           
                         	# Calculate command setpoints
@@ -228,9 +233,16 @@ class Rover():
                                         self.fsm = 'GoTo'                       
                                 
                         if self.fsm == 'End':
+				self.modeFSM = 2
                                 self.left_omega_ref = 0 #self.left_omega_ref + self.t_gui*(0.0-self.left_omega_ref)
                                 self.righ_omega_ref = 0 #self.righ_omega_ref + self.t_gui*(0.0-self.righ_omega_ref)
                        
+			if self.fsm == 'Stop':
+				for i in range(0,5):
+					self.left_omega_ref = 0
+					self.righ_omega_ref = 0
+				self.exit = True
+
                         # Process control
                         Timer(period, start_time)
                         self.t_gui = time() - start_time
@@ -240,7 +252,7 @@ class Rover():
         
         def Navigation(self):
                 start_time = time()
-		isKalmanActive = True
+		isKalmanActive = False
 
                 # Thread setting
                 period = 0.1
@@ -272,14 +284,15 @@ class Rover():
 
 				if isKalmanActive == False :
                                         dmoy = self.R*self.t_nav*(omega_righ + omega_left)*0.5*convert
-                                	temp = Reset(self.Wcurrent + 2*self.R*self.t_nav*convert*(omega_righ-omega_left)/self.L)
+                                	temp = self.Wcurrent + self.R*self.t_nav*convert*(omega_righ-omega_left)/self.L
                                		self.Wcurrent = Reset(temp) 
                                 	self.Xcurrent = self.Xcurrent + dmoy*cos(self.Wcurrent)
                                 	self.Ycurrent = self.Ycurrent + dmoy*sin(self.Wcurrent)
                                 if isKalmanActive == True :
+					temp = Reset(self.WcurrentOdo + self.R*self.t_nav*convert*(omega_righ-omega_left)/self.L)
+					self.WcurrentOdo = Reset(temp)
 					self.Kalman.Prediction(omega_righ, omega_left)
 					self.Wcurrent, self.Wgyro = self.Kalman.Update()
-					self.Wcurrent = Reset(self.Wcurrent)
                                         dmoy = self.R*self.t_nav*(omega_righ + omega_left)*0.5*convert
 					self.Xcurrent = self.Xcurrent + dmoy*cos(self.Wcurrent)
                                 	self.Ycurrent = self.Ycurrent + dmoy*sin(self.Wcurrent)
@@ -288,7 +301,7 @@ class Rover():
                                 yaw, pitch, roll = self.sense.get_orientation().values()
                                 ax, ay, az = self.sense.get_accelerometer_raw().values()
                                 fichier = open('data','a')
-                                fichier.write("%.3f,%.3f,%.4f,%.4f,%.4f,%.2f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.2f,%.2f,%.4f\n" % ((time()-self.debut), self.t_nav, yaw, pitch, roll, self.sense.get_temperature(), ax, ay, az, self.Xcurrent, self.Ycurrent, self.Wcurrent, omega_righ, omega_left, self.Wshift))
+                                fichier.write("%.3f,%.3f,%.4f,%.4f,%.4f,%.2f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.2f,%.2f,%.4f,%.4f,%.4f\n" % ((time()-self.debut), self.t_nav, yaw, pitch, roll, self.sense.get_temperature(), ax, ay, az, self.Xcurrent, self.Ycurrent, self.Wcurrent, omega_righ, omega_left, self.Wshift, self.Wgyro, self.WcurrentOdo))
                                 fichier.close()
         
                         # Process control
@@ -311,7 +324,7 @@ class Rover():
                         start_time = time()
                         
                         # Bidirectionnal link with Arduino
-                        arduino.sendDatas(self.left_omega_ref, self.righ_omega_ref)
+                        arduino.sendDatas(self.left_omega_ref, self.righ_omega_ref, self.modeFSM)
                         self.left_omega_mes, self.righ_omega_mes, self.left_dist, self.righ_dist = arduino.getDatas()
 
                         # Process control
@@ -320,38 +333,85 @@ class Rover():
                 logging.debug("Exiting")
 
 
-        def Vision(self):
-
-                start_time = time()
-#               cv2.namedWindow('Vision', cv2.WINDOW_NORMAL)
-                cols = 320
-                rows = 240
-                camera = PiCamera()
-                camera.resolution = (cols, rows)
-                camera.framerate = 10
-                rawCapture = PiRGBArray(camera, size=(cols,rows))
-                period = 0.1
-                logging.debug("Starting")
-                Timer(self.init_time, start_time)
+def Vision():
+        start_time = time()
+        cv2.namedWindow('Vision', cv2.WINDOW_NORMAL)
+        cols = 640
+        rows = 480
+        camera = PiCamera()
+        camera.resolution = (cols, rows)
+        camera.framerate = 10
+        rawCapture = PiRGBArray(camera, size=(cols,rows))
+        period = 0.1
+        logging.debug("Starting")
+        sleep(4.9)
                 
-                for frame in camera.capture_continuous(rawCapture, format = "bgr", use_video_port = True):
-                        start_time = time()
+        for frame in camera.capture_continuous(rawCapture, format = "bgr", use_video_port = True):
+                start_time = time()
 
-                        # Image processing                      
-                        image = frame.array
-#                       blur = cv2.blur(image,(5,5))
-#                       gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
-#                       cv2.imshow('Vision', image)
+                # Image processing                      
+                img = frame.array
+                img = cv2.medianBlur(img,5)
+                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 20,
+                                           param1 = 50, param2 = 30, minRadius = 0, maxRadius = 0)
+                print circles
 
-                        # Break the loop
-                        rawCapture.truncate(0)
-                        if self.exit:
-                                camera.close()
-                                break                   
+                #circles = np.uint16(np.around(circles))
+                #for i in circles[0,:]:
+                 #       cv2.circle(img,i[0],i[1],i[2],(0,255,0),2)
+                                
+                #blur = cv2.blur(img,(5,5))
+                #imageHSV = cv2.cvtColor(img, cv2.COLOR_GRAY2HSV)
 
-                        # Process control
-                        Timer(period, start_time)               
-                        self.t_vis = time() - start_time 
+                # Thresholding
+                min_red = np.array((0. ,125. ,125. ))
+                max_red = np.array((7. ,255. ,255. ))
+                min_red2 = np.array((170. ,125. ,125. ))
+                max_red2 = np.array((180. ,255. ,255. ))
+                imgThresh = cv2.inRange(imageHSV, min_red, max_red)
+                imgThresh2= cv2.inRange(imageHSV, min_red2, max_red2)
+                imgThreshT=cv2.bitwise_or(imgThresh,imgThresh2)
 
-                cv2.destroyAllWindows()
-                logging.debug("Exiting")
+                # Filter
+                kernel = np.ones((7,7),np.uint8)
+                closing = cv2.morphologyEx(imgThreshT, cv2.MORPH_CLOSE, kernel)
+                image, contours,hier = cv2.findContours(closing,cv2.RETR_LIST,cv2.CHAIN_APPROX_NONE)
+
+                cnt_filt=[]                
+                for cnt in contours:
+                        CurrAera=cv2.contourArea(cnt)
+                        if CurrAera>1500 :
+                                hull = cv2.approxPolyDP(cnt,0.02*cv2.arcLength(cnt,True),True)
+                                approx = cv2.convexHull(cnt)
+                                if not cv2.isContourConvex(hull): # and len(hull)<=136:
+                                        m = cv2.moments(hull)
+                                        n = cv2.moments(approx)
+                                        if m['m00'] !=0:
+                                                barycentre=(int(m['m10']/m['m00']),int(m['m01']/m['m00']))
+                                                cv2.drawContours(img,[hull],0,(0,0,255),2)
+                                                barycentre_2=(int(n['m10']/n['m00']),int(n['m01']/n['m00']))
+                                                cv2.circle(img,barycentre_2,4,(255,0,255),-1)
+
+                #CREATE COMPOSED IMAGE
+                rows,cols,channels = img.shape
+                compoImage = np.zeros((rows,2*cols,3), np.uint8)
+                compoImage[0:rows, 0:cols ] = img
+                # imgThreshTRGB = cv2.cvtColor ( imgThreshT, cv2.COLOR_GRAY2BGR );
+                compoImage[0:rows, cols:2*cols ] = img
+                
+                #CAPTURE VIDEO
+                cv2.imshow('Vision', compoImage)
+                key = cv2.waitKey(1)
+		rawCapture.truncate(0)
+		
+		# SORTIE
+		if key == 27:
+				camera.close()
+				break
+
+                sleep(0.1)
+                t_vis = time() - start_time 
+
+        cv2.destroyAllWindows()
+        logging.debug("Exiting")
