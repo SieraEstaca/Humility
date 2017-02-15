@@ -14,7 +14,7 @@ Final year project : Space rover design and mechatronics engineering
 * Bidirectionnel communication for serial link with rpi
 * Use of ArduinoThread
 
-Photos
+#### Photos
 ![Alt Text](https://github.com/SieraEstaca/Humility/blob/master/Test_Rover.jpg)
 ![Alt Text](https://github.com/SieraEstaca/Humility/blob/master/Final_Rover.JPG)
 
